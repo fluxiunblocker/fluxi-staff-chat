@@ -576,6 +576,8 @@
                     .then(html => {
                         popup.document.write(html);
                         popup.document.close();
+                        // Cloak the original page by redirecting to Google Docs
+                        window.location.href = 'https://docs.google.com';
                     });
             };
         }
