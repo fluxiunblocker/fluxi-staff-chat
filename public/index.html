@@ -335,7 +335,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
     <!-- SNOW EFFECT -->
     <script>
@@ -434,31 +433,30 @@
         });
 
         function connectSocket() {
-            const serverUrl = window.location.hostname === 'localhost'
-                ? 'http://localhost:3000'
-                : window.location.origin;
+            // Load initial messages
+            fetch('/api/messages')
+                .then(response => response.json())
+                .then(data => {
+                    messages = data.messages;
+                    render();
+                })
+                .catch(error => console.error('Error loading messages:', error));
 
-            socket = io(serverUrl);
+            // Poll for new messages every 2 seconds
+            setInterval(() => {
+                fetch('/api/messages')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.messages.length > messages.length) {
+                            messages = data.messages;
+                            render();
+                        }
+                    })
+                    .catch(error => console.error('Error polling messages:', error));
+            }, 2000);
 
-            socket.on('connect', () => {
-                statusEl.textContent = 'Connected';
-                statusEl.className = 'status connected';
-            });
-
-            socket.on('disconnect', () => {
-                statusEl.textContent = 'Disconnected';
-                statusEl.className = 'status disconnected';
-            });
-
-            socket.on('load_messages', msgs => {
-                messages = msgs;
-                render();
-            });
-
-            socket.on('new_message', msg => {
-                messages.push(msg);
-                render();
-            });
+            statusEl.textContent = 'Connected';
+            statusEl.className = 'status connected';
         }
 
         function render() {
@@ -485,9 +483,24 @@
 
         function sendMessage() {
             const text = messageInput.value.trim();
-            if (!text || !socket || !socket.connected) return;
-            socket.emit('send_message', { username, text });
-            messageInput.value = '';
+            if (!text) return;
+            fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, text })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        messageInput.value = '';
+                        // Optionally, add the message locally to avoid waiting for poll
+                        messages.push(data.message);
+                        render();
+                    }
+                })
+                .catch(error => console.error('Error sending message:', error));
         }
 
         sendButton.onclick = sendMessage;

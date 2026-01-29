@@ -1,18 +1,9 @@
 const express = require('express');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
-});
 
 // Middleware
 app.use(cors());
@@ -76,42 +67,33 @@ app.delete('/api/users/:username', (req, res) => {
     res.json({ success: true });
 });
 
-// Socket.IO
-io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+// API endpoints for messages
+app.get('/api/messages', (req, res) => {
+    res.json({ messages });
+});
 
-    // Send existing messages
-    socket.emit('load_messages', messages);
-
-    // Handle new message
-    socket.on('send_message', (data) => {
-        const message = {
-            id: Date.now() + Math.random(),
-            username: data.username || 'Anonymous',  // Save username
-            text: data.text,
-            timestamp: Date.now()
-        };
-
-        messages.push(message);
-
-        // Keep only last MAX_MESSAGES
-        if (messages.length > MAX_MESSAGES) {
-            messages = messages.slice(-MAX_MESSAGES);
-        }
-
-        // Broadcast
-        io.emit('new_message', message);
-    });
-
-    // Handle disconnect
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-    });
+app.post('/api/messages', (req, res) => {
+    const { username, text } = req.body;
+    if (!username || !text) {
+        return res.status(400).json({ error: 'Username and text required' });
+    }
+    const message = {
+        id: Date.now() + Math.random(),
+        username,
+        text,
+        timestamp: Date.now()
+    };
+    messages.push(message);
+    // Keep only last MAX_MESSAGES
+    if (messages.length > MAX_MESSAGES) {
+        messages = messages.slice(-MAX_MESSAGES);
+    }
+    res.json({ success: true, message });
 });
 
 // Start server
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
+app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 
