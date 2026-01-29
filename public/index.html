@@ -24,6 +24,138 @@
             overflow: hidden;
         }
 
+        .login-container {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            backdrop-filter: blur(12px);
+            background: rgba(2, 6, 23, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-form {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .login-form h2 {
+            color: #60a5fa;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 14px 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(96, 165, 250, 0.5);
+            background: rgba(2, 6, 23, 0.9);
+            color: #e5e7eb;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .login-form button {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: #020617;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .login-form .error {
+            color: #ef4444;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .admin-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            max-width: 300px;
+            z-index: 3;
+        }
+
+        .admin-panel h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .user-list {
+            margin-bottom: 20px;
+        }
+
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+        }
+
+        .user-item span {
+            color: #e5e7eb;
+        }
+
+        .user-item button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .add-user-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .add-user-form input {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(96, 165, 250, 0.5);
+            background: rgba(2, 6, 23, 0.9);
+            color: #e5e7eb;
+        }
+
+        .add-user-form button {
+            padding: 8px;
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: #020617;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
         #snow {
             position: fixed;
             inset: 0;
@@ -166,20 +298,40 @@
 <body>
     <canvas id="snow"></canvas>
 
-    <div class="header">
+    <div id="loginContainer" class="login-container">
+        <div class="login-form">
+            <h2>Login to Chat</h2>
+            <input type="text" id="usernameInput" placeholder="Username" autocomplete="off">
+            <input type="password" id="passwordInput" placeholder="Password">
+            <button id="loginButton">Login</button>
+            <div id="loginError" class="error"></div>
+        </div>
+    </div>
+
+    <div class="header hidden" id="header">
         <h1>Fluxi Staff Group Chat</h1>
         <p>Staff chat • prxy talk • work assignments</p>
         <span id="status" class="status disconnected">Connecting...</span>
     </div>
 
-    <div class="chat-container" id="chatContainer">
+    <div class="chat-container hidden" id="chatContainer">
         <div class="loading">Connecting to chat…</div>
     </div>
 
-    <div class="input-container">
+    <div class="input-container hidden" id="inputContainer">
         <div class="input-wrapper">
             <input type="text" id="messageInput" placeholder="Message the Fluxi staff…" autocomplete="off">
             <button id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <div class="admin-panel hidden" id="adminPanel">
+        <h3>Admin Panel</h3>
+        <div class="user-list" id="userList"></div>
+        <div class="add-user-form">
+            <input type="text" id="newUsername" placeholder="New username">
+            <input type="password" id="newPassword" placeholder="New password">
+            <button id="addUserButton">Add User</button>
         </div>
     </div>
 
@@ -228,17 +380,58 @@
 
     <!-- CHAT SCRIPT -->
     <script>
+        const loginContainer = document.getElementById('loginContainer');
+        const header = document.getElementById('header');
         const chatContainer = document.getElementById('chatContainer');
+        const inputContainer = document.getElementById('inputContainer');
+        const usernameInput = document.getElementById('usernameInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginButton = document.getElementById('loginButton');
+        const loginError = document.getElementById('loginError');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
         const statusEl = document.getElementById('status');
 
         let messages = [];
         let socket;
+        let username = '';
+        let isAdmin = false;
 
-        // Prompt for username
-        let username = prompt('Enter your username:');
-        if (!username) username = 'Anonymous';
+        // Load users from JSON
+        let users = [];
+        fetch('users.json')
+            .then(response => response.json())
+            .then(data => {
+                users = data.users;
+            })
+            .catch(error => console.error('Error loading users:', error));
+
+        function login() {
+            const enteredUsername = usernameInput.value.trim();
+            const enteredPassword = passwordInput.value.trim();
+
+            const user = users.find(u => u.username === enteredUsername && u.password === enteredPassword);
+            if (user) {
+                username = enteredUsername;
+                if (username === 'admin') {
+                    isAdmin = true;
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                    loadUserList();
+                }
+                loginContainer.classList.add('hidden');
+                header.classList.remove('hidden');
+                chatContainer.classList.remove('hidden');
+                inputContainer.classList.remove('hidden');
+                connectSocket();
+            } else {
+                loginError.textContent = 'Invalid username or password';
+            }
+        }
+
+        loginButton.onclick = login;
+        passwordInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') login();
+        });
 
         function connectSocket() {
             const serverUrl = window.location.hostname === 'localhost'
@@ -302,7 +495,62 @@
             if (e.key === 'Enter') sendMessage();
         });
 
-        connectSocket();
+        // Admin functions
+        function loadUserList() {
+            fetch('/api/users')
+                .then(response => response.json())
+                .then(data => {
+                    const userList = document.getElementById('userList');
+                    userList.innerHTML = '';
+                    data.users.forEach(user => {
+                        const userItem = document.createElement('div');
+                        userItem.className = 'user-item';
+                        userItem.innerHTML = `
+                            <span>${user.username}</span>
+                            ${user.username !== 'admin' ? `<button onclick="banUser('${user.username}')">Ban</button>` : ''}
+                        `;
+                        userList.appendChild(userItem);
+                    });
+                });
+        }
+
+        function banUser(username) {
+            if (confirm(`Are you sure you want to ban ${username}?`)) {
+                fetch(`/api/users/${username}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            loadUserList();
+                        } else {
+                            alert(data.error);
+                        }
+                    });
+            }
+        }
+
+        document.getElementById('addUserButton').onclick = () => {
+            const newUsername = document.getElementById('newUsername').value.trim();
+            const newPassword = document.getElementById('newPassword').value.trim();
+            if (!newUsername || !newPassword) {
+                alert('Please enter both username and password');
+                return;
+            }
+            fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: newUsername, password: newPassword })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('newUsername').value = '';
+                        document.getElementById('newPassword').value = '';
+                        loadUserList();
+                    } else {
+                        alert(data.error);
+                    }
+                });
+        };
     </script>
 </body>
 
