@@ -565,6 +565,21 @@
                 });
         };
     </script>
+
+    <!-- POPUP SCRIPT -->
+    <script>
+        if (!window.opener) {
+            window.onload = function () {
+                let popup = window.open('about:blank', 'chat');
+                fetch(window.location.href)
+                    .then(response => response.text())
+                    .then(html => {
+                        popup.document.write(html);
+                        popup.document.close();
+                    });
+            };
+        }
+    </script>
 </body>
 
 </html>
